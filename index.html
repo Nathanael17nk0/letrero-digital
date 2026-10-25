@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Letrero LED Digital - Pantalla Completa & Móvil</title>
+  <meta name="description" content="Letrero LED digital para pantalla completa y celular. Tipografía ultra nítida, modo marquesina, efectos neón, rotación móvil y pantalla completa.">
+  <meta name="theme-color" content="#050508">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Optional Web Fonts (non-blocking) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Outfit:wght@500;700;800&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
+  <style>
+    /* ==========================================================================
+       LETRERO LED DIGITAL - SISTEMA COMPLETO DESKTOP & CELULAR
+       ========================================================================== */
+    :root {
+      --bg-deep: #050508;
+      --bg-cabinet: #08080d;
+      --bg-panel: #0d0d15;
+      --border-subtle: rgba(255, 255, 255, 0.09);
+      --border-focus: #ffaa00;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: #ffaa00;
+      --font-stack: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: var(--font-stack);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Contenedor Maestro */
+    .app-container {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+      background: #040406;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Rotación 90° para sostener celular en horizontal */
+    .app-container.rotated-landscape {
+      width: 100vh !important;
+      width: 100dvh !important;
+      height: 100vw !important;
+      height: 100dvw !important;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(90deg);
+      transform-origin: center center;
+    }
+
+    /* --------------------------------------------------------------------------
+       TOP BAR
+       -------------------------------------------------------------------------- */
+    .top-bar {
+      height: 48px;
+      min-height: 48px;
+      background: rgba(13, 13, 18, 0.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      padding-top: var(--safe-top);
+      z-index: 20;
+      transition: transform 0.28s ease, opacity 0.28s ease;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-led-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent);
+      animation: pulseDot 1.5s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      100% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 14px var(--accent), 0 0 24px var(--accent); }
+    }
+
+    .brand-name {
+      font-size: 0.88rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+      font-family: 'Orbitron', var(--font-stack);
+    }
+
+    .brand-pill {
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(255, 170, 0, 0.12);
+      border: 1px solid rgba(255, 170, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-top {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      height: 32px;
+    }
+
+    .btn-top:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .btn-top.active {
+      background: rgba(255, 170, 0, 0.22);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 10px rgba(255, 170, 0, 0.35);
+    }
+
+    .btn-fullscreen {
+      background: linear-gradient(135deg, #ffaa00 0%, #ff6600 100%);
+      color: #000;
+      border: none;
+      font-weight: 700;
+      box-shadow: 0 3px 12px rgba(255, 136, 0, 0.4);
+    }
+
+    .btn-fullscreen:hover {
+      background: linear-gradient(135deg, #ffbb22 0%, #ff7711 100%);
+      box-shadow: 0 4px 18px rgba(255, 136, 0, 0.6);
+    }
+
+    /* --------------------------------------------------------------------------
+       BOARD CONTAINER (PANTALLA LED PRINCIPAL)
+       -------------------------------------------------------------------------- */
+    .board-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 14px;
+      min-height: 0;
+      background: radial-gradient(ellipse at 50% 50%, #101018 0%, #030305 100%);
+      overflow: hidden;
+      transition: padding 0.3s ease;
+      cursor: pointer;
+    }
+
+    .led-cabinet-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: var(--bg-cabinet);
+      border: 3px solid #1c1c28;
+      border-radius: 12px;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.98), 0 10px 30px rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      transition: border 0.3s ease, border-radius 0.3s ease;
+    }
+
+    .board-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #020204;
+    }
+
+    #ledCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .acrylic-grid-mesh {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: 
+        radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 80%),
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0px, rgba(0, 0, 0, 0.35) 1px, transparent 1px, transparent 3px);
+      mix-blend-mode: overlay;
+      opacity: 0.65;
+    }
+
+    .fullscreen-tap-area {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      cursor: pointer;
+      display: none;
+    }
+
+    /* Floating Pill HUD in Fullscreen */
+    .floating-hud {
+      position: absolute;
+      bottom: calc(16px + var(--safe-bottom));
+      right: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 35;
+      background: rgba(14, 14, 20, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      padding: 5px 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 170, 0, 0.25);
+    }
+
+    .hud-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+    }
+
+    .hud-btn-danger {
+      background: rgba(255, 34, 68, 0.22);
+      border-color: rgba(255, 34, 68, 0.45);
+      color: #ff4d6d;
+    }
+
+    /* --------------------------------------------------------------------------
+       CONTROLS PANEL (BOTTOM DOCK)
+       -------------------------------------------------------------------------- */
+    .controls-panel {
+      position: relative;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-subtle);
+      padding: 10px 14px calc(8px + var(--safe-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 15;
+      max-height: 52vh;
+      overflow-y: auto;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease;
+    }
+
+    /* Input Row */
+    .input-row {
+      width: 100%;
+    }
+
+    .input-box {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.55);
+      border: 1.5px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 2px 10px;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+      transition: border-color 0.15s ease;
+    }
+
+    .input-box:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255, 170, 0, 0.2);
+    }
+
+    .input-symbol {
+      font-size: 1.05rem;
+      margin-right: 8px;
+      opacity: 0.85;
+    }
+
+    #messageInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-family: inherit;
+      font-size: 1rem; /* 16px min on iOS to avoid auto-zoom */
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      padding: 7px 0;
+    }
+
+    #messageInput::placeholder {
+      color: #6b7280;
+    }
+
+    .btn-clear {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #9ca3af;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    /* Mobile Category Tabs (Para Celular) */
+    .mobile-category-tabs {
+      display: none;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 6px;
+    }
+
+    .mobile-tab-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .mobile-tab-btn.active {
+      background: rgba(255, 170, 0, 0.18);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Presets Row */
+    .presets-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+    }
+
+    .presets-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .presets-list {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .presets-list::-webkit-scrollbar { display: none; }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: #d1d5db;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 4px 9px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .preset-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    /* Settings Deck Grid */
+    .settings-deck {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .deck-card {
+      background: rgba(0, 0, 0, 0.38);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .card-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    .card-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    /* Swatches */
+    .colors-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .swatch {
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      background: var(--swatch);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 0 6px var(--swatch);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .swatch:hover {
+      transform: scale(1.15);
+      border-color: #fff;
+    }
+
+    .swatch.active {
+      transform: scale(1.22);
+      border: 2.5px solid #fff;
+      box-shadow: 0 0 12px var(--swatch), 0 0 20px var(--swatch);
+    }
+
+    .rainbow-swatch {
+      background: linear-gradient(135deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff);
+      font-size: 0.75rem;
+    }
+
+    .custom-color-btn {
+      position: relative;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1.5px dashed rgba(255, 255, 255, 0.35);
+      cursor: pointer;
+    }
+
+    .custom-color-btn input[type="color"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    /* Modes Row */
+    .modes-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+    }
+
+    .mode-pill {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: #cbd5e1;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 5px 2px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .mode-pill:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .mode-pill.active {
+      background: rgba(255, 170, 0, 0.22);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
+    }
+
+    /* Fit Selector (Todo en Pantalla vs 1 Línea) */
+    .fit-segment-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-top: 4px;
+    }
+
+    .fit-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 5px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .fit-pill:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .fit-pill.active {
+      background: rgba(251, 146, 60, 0.22);
+      border-color: #fb923c;
+      color: #fed7aa;
+      box-shadow: 0 0 10px rgba(251, 146, 60, 0.35);
+    }
+
+    /* Sliders */
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .range-icon {
+      font-size: 0.85rem;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      cursor: pointer;
+    }
+
+    /* Segmented Button Groups (Grosor de Letra) */
+    .segmented-group {
+      display: flex;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .segment-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 4px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      font-family: inherit;
+    }
+
+    .segment-btn.active {
+      background: rgba(255, 170, 0, 0.22);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Selects */
+    .selects-col {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .select-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+    }
+
+    .select-field label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .select-field select {
+      background: rgba(18, 20, 29, 0.9);
+      color: #f3f4f6;
+      color-scheme: dark;
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .select-field select option {
+      background-color: #12141d;
+      color: #f3f4f6;
+    }
+
+    /* Footer Info */
+    .deck-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 5px;
+      margin-top: 1px;
+    }
+
+    .hints-list {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hints-list span {
+      font-size: 0.66rem;
+      color: #6b7280;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    kbd {
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 4px;
+      padding: 1px 4px;
+      font-size: 0.6rem;
+      color: #d1d5db;
+      font-family: monospace;
+    }
+
+    .fps-meter {
+      font-size: 0.66rem;
+      font-weight: 700;
+      color: #00ff66;
+      background: rgba(0, 255, 102, 0.1);
+      border: 1px solid rgba(0, 255, 102, 0.25);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'Orbitron', monospace;
+    }
+
+    /* --------------------------------------------------------------------------
+       FULLSCREEN / UI-HIDDEN STATES
+       -------------------------------------------------------------------------- */
+    .app-container.ui-hidden .top-bar {
+      transform: translateY(-120%);
+      opacity: 0;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+    }
+
+    .app-container.ui-hidden .controls-panel {
+      transform: translateY(120%);
+      opacity: 0;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      pointer-events: none;
+    }
+
+    .app-container.ui-hidden .board-container {
+      padding: 0;
+    }
+
+    .app-container.ui-hidden .led-cabinet-frame {
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+    }
+
+    .app-container.ui-hidden .fullscreen-tap-area {
+      display: block;
+    }
+
+    .app-container.ui-hidden .floating-hud {
+      display: flex;
+    }
+
+    /* --------------------------------------------------------------------------
+       RESPONSIVE CELULAR (MOBILE OPTIMIZATIONS)
+       -------------------------------------------------------------------------- */
+    @media (max-width: 768px) {
+      .top-bar {
+        height: 44px;
+        min-height: 44px;
+        padding: 0 10px;
+      }
+
+      .brand-name { font-size: 0.78rem; letter-spacing: 1px; }
+      .brand-pill { display: none; }
+
+      .btn-top span:not(:first-child) {
+        display: none;
+      }
+
+      .btn-top {
+        padding: 4px 8px;
+        height: 28px;
+      }
+
+      .btn-fullscreen span:not(:first-child) {
+        display: inline;
+        font-size: 0.72rem;
+      }
+
+      .board-container {
+        padding: 6px 8px;
+      }
+
+      .controls-panel {
+        max-height: 58vh;
+        padding: 8px 10px calc(8px + var(--safe-bottom));
+        gap: 8px;
+      }
+
+      .mobile-category-tabs {
+        display: flex;
+      }
+
+      /* Control cards filtered by mobile tabs */
+      .deck-card {
+        display: none;
+      }
+      .controls-panel[data-tab="msg"] .deck-card.tab-msg,
+      .controls-panel[data-tab="style"] .deck-card.tab-style,
+      .controls-panel[data-tab="settings"] .deck-card.tab-settings {
+        display: flex;
+      }
+
+      .presets-row {
+        margin-bottom: 2px;
+      }
+
+      .hints-list { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="appContainer" class="app-container">
+
+    <!-- Top Header Bar -->
+    <header id="topBar" class="top-bar">
+      <div class="brand">
+        <div class="brand-led-dot"></div>
+        <span class="brand-name">LETRERO LED</span>
+        <span class="brand-pill">HD PRO</span>
+      </div>
+
+      <div class="top-actions">
+        <!-- Rotate Screen (Ideal para sostener el celular en horizontal) -->
+        <button id="btnRotateMobile" class="btn-top" title="Girar pantalla 90° (Ideal para celulares)">
+          <span>🔄</span>
+          <span>Girar</span>
+        </button>
+
+        <!-- Play / Pause -->
+        <button id="btnPlayPause" class="btn-top" title="Pausar o Reanudar (Espacio)">
+          <span id="iconPlayPause">⏸️</span>
+          <span id="txtPlayPause">Pausar</span>
+        </button>
+
+        <!-- Mirror Mode -->
+        <button id="btnMirror" class="btn-top" title="Modo Espejo (Reflejo en parabrisas o cristales)">
+          <span>🪞</span>
+          <span>Espejo</span>
+        </button>
+
+        <!-- Hide Controls -->
+        <button id="btnToggleUI" class="btn-top" title="Ocultar barra de controles (H o toca la pantalla)">
+          <span id="iconToggleUI">👁️</span>
+          <span id="txtToggleUI">Ocultar</span>
+        </button>
+
+        <!-- Fullscreen Button -->
+        <button id="btnFullscreen" class="btn-top btn-fullscreen" title="Pantalla Completa (F)">
+          <span id="iconFullscreen">⛶</span>
+          <span id="txtFullscreen">Pantalla Completa</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Center LED Board Screen -->
+    <section id="boardContainer" class="board-container" title="Toca para pantalla completa sin controles">
+      <div class="led-cabinet-frame">
+        <div id="boardWrapper" class="board-wrapper">
+          <canvas id="ledCanvas"></canvas>
+          <div class="acrylic-grid-mesh"></div>
+        </div>
+      </div>
+
+      <!-- Quick Fullscreen Tap Overlay -->
+      <div id="fullscreenTapArea" class="fullscreen-tap-area" title="Toca para mostrar controles"></div>
+    </section>
+
+    <!-- Floating HUD Pill in Fullscreen -->
+    <div id="floatingHud" class="floating-hud">
+      <button id="hudBtnSettings" class="hud-btn" title="Mostrar panel de controles">
+        <span>⚙️ Controles</span>
+      </button>
+      <button id="hudBtnExitFs" class="hud-btn hud-btn-danger" title="Salir de Pantalla Completa (Esc)">
+        <span>✕ Salir</span>
+      </button>
+    </div>
+
+    <!-- Bottom Controls Panel -->
+    <footer id="controlsPanel" class="controls-panel" data-tab="msg">
+      
+      <!-- Primary Input Row -->
+      <div class="input-row">
+        <div class="input-box">
+          <span class="input-symbol">💬</span>
+          <input 
+            type="text" 
+            id="messageInput" 
+            placeholder="Escribe tu mensaje..." 
+            value="¡HOLA! BIENVENIDOS AL LETRERO LED ✨" 
+            maxlength="200"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button id="btnClearText" class="btn-clear" title="Borrar texto">✕</button>
+        </div>
+      </div>
+
+      <!-- Mobile Tabs Switcher -->
+      <div class="mobile-category-tabs">
+        <button class="mobile-tab-btn active" data-tab-target="msg">💬 Texto & Modo</button>
+        <button class="mobile-tab-btn" data-tab-target="style">🎨 Color & Efecto</button>
+        <button class="mobile-tab-btn" data-tab-target="settings">⚙️ Nítidez & Pantalla</button>
+      </div>
+
+      <!-- Quick Message Presets -->
+      <div class="presets-row">
+        <span class="presets-title">Rápidos:</span>
+        <div class="presets-list">
+          <button class="preset-btn" data-text="🎉 ¡FIESTA HOY! ENTRADA LIBRE 🍾" data-color="#ff007f" data-mode="marquee-left">🎉 Fiesta</button>
+          <button class="preset-btn" data-text="🚨 ATENCIÓN - PELIGRO 🚨" data-color="#ff2244" data-mode="blink">🚨 Alerta</button>
+          <button class="preset-btn" data-text="🚕 TAXI LIBRE • DISPONIBLE" data-color="#ffaa00" data-mode="marquee-left">🚕 Taxi</button>
+          <button class="preset-btn" data-text="❤️ TE AMO CON TODO MI CORAZÓN ❤️" data-color="#ff1493" data-mode="wave">❤️ Te Amo</button>
+          <button class="preset-btn" data-text="🍺 HORA FELIZ 2x1 EN CERVEZAS 🍻" data-color="#00e5ff" data-mode="marquee-left">🍺 2x1 Cerveza</button>
+          <button class="preset-btn" data-text="⚡ MATRIX SYSTEM ACTIVE 010101 ⚡" data-color="#00ff66" data-mode="marquee-left">⚡ Matrix</button>
+          <button class="preset-btn" data-text="🌈 VIVE EL MOMENTO AL MÁXIMO 🌈" data-color="rainbow" data-mode="marquee-left">🌈 Arcoíris</button>
+        </div>
+      </div>
+
+      <!-- Control Settings Grid -->
+      <div class="settings-deck">
+
+        <!-- 1. Animation Mode & Speed (Tab Msg) -->
+        <div class="deck-card tab-msg">
+          <div class="card-title-row">
+            <span class="card-title">Modo de Efecto</span>
+          </div>
+          <div class="modes-row">
+            <button class="mode-pill active" data-mode="marquee-left" title="Desplazamiento a la izquierda">
+              <span>⬅️</span> Correr
+            </button>
+            <button class="mode-pill" data-mode="marquee-right" title="Desplazamiento a la derecha">
+              <span>➡️</span> Inverso
+            </button>
+            <button class="mode-pill" data-mode="static" title="Texto centrado en pantalla">
+              <span>⏹️</span> Fijo
+            </button>
+            <button class="mode-pill" data-mode="blink" title="Parpadeo intermitente / estroboscópico">
+              <span>⚡</span> Parpadeo
+            </button>
+            <button class="mode-pill" data-mode="wave" title="Efecto ola ondulante">
+              <span>🌊</span> Onda
+            </button>
+          </div>
+
+          <div class="card-title-row" style="margin-top: 8px;">
+            <span class="card-title">Ajuste de Pantalla</span>
+            <span id="fitBadge" class="card-badge">Todo en Pantalla</span>
+          </div>
+          <div class="fit-segment-row">
+            <button class="fit-pill active" data-fit="auto" id="btnFitAuto" title="Ajusta y divide en líneas para ver todo el texto completo a la vez sin correr">
+              📐 Todo en Pantalla
+            </button>
+            <button class="fit-pill" data-fit="scroll" id="btnFitScroll" title="Texto en una sola línea continua">
+              📜 1 Sola Línea
+            </button>
+          </div>
+
+          <div class="card-title-row" style="margin-top: 8px;">
+            <span class="card-title">Velocidad</span>
+            <span id="speedLabel" class="card-badge">Media (6)</span>
+          </div>
+          <div class="range-row">
+            <span class="range-icon">🐢</span>
+            <input type="range" id="speedSlider" min="1" max="15" value="6" step="1">
+            <span class="range-icon">🚀</span>
+          </div>
+        </div>
+
+        <!-- 2. Colors & Glow (Tab Style) -->
+        <div class="deck-card tab-style">
+          <div class="card-title-row">
+            <span class="card-title">Color de LEDs</span>
+            <span id="colorNameBadge" class="card-badge">Ámbar Oro</span>
+          </div>
+          <div class="colors-row">
+            <button class="swatch active" data-color="#ffaa00" data-name="Ámbar Oro" style="--swatch:#ffaa00;" title="Ámbar Clásico"></button>
+            <button class="swatch" data-color="#ff2244" data-name="Rojo Neón" style="--swatch:#ff2244;" title="Rojo Neón"></button>
+            <button class="swatch" data-color="#00ff66" data-name="Verde Matrix" style="--swatch:#00ff66;" title="Verde Matrix"></button>
+            <button class="swatch" data-color="#00e5ff" data-name="Cyan Hielo" style="--swatch:#00e5ff;" title="Cyan Hielo"></button>
+            <button class="swatch" data-color="#ff1493" data-name="Rosa Neón" style="--swatch:#ff1493;" title="Rosa Neón"></button>
+            <button class="swatch" data-color="#a855f7" data-name="Violeta Cyber" style="--swatch:#a855f7;" title="Violeta Cyber"></button>
+            <button class="swatch" data-color="#ffffff" data-name="Blanco Frío" style="--swatch:#ffffff;" title="Blanco Puro"></button>
+            <button class="swatch rainbow-swatch" data-color="rainbow" data-name="Arcoíris RGB" title="Modo Arcoíris Dinámico">🌈</button>
+            
+            <label class="custom-color-btn" title="Color personalizado">
+              <input type="color" id="customColorPicker" value="#ffaa00">
+              <span>🎨</span>
+            </label>
+          </div>
+
+          <div class="card-title-row" style="margin-top: 8px;">
+            <span class="card-title">Resplandor Neón</span>
+            <span id="glowLabel" class="card-badge">80%</span>
+          </div>
+          <div class="range-row">
+            <span class="range-icon">💡</span>
+            <input type="range" id="glowSlider" min="0" max="100" value="80" step="5">
+            <span class="range-icon">✨</span>
+          </div>
+        </div>
+
+        <!-- 3. Legibility & Letter Thickness (Tab Settings) -->
+        <div class="deck-card tab-settings">
+          <div class="card-title-row">
+            <span class="card-title">Nítidez / Grosor de Letra</span>
+            <span id="strokeLabel" class="card-badge">Nítido</span>
+          </div>
+          <div class="segmented-group">
+            <button class="segment-btn active" data-stroke="fine">Fino (Nítido)</button>
+            <button class="segment-btn" data-stroke="normal">Normal</button>
+            <button class="segment-btn" data-stroke="bold">Grueso</button>
+          </div>
+
+          <div class="card-title-row" style="margin-top: 8px;">
+            <span class="card-title">Espaciado de Letras</span>
+            <span id="spacingLabel" class="card-badge">Normal (+2)</span>
+          </div>
+          <div class="range-row">
+            <span class="range-icon">🔤</span>
+            <input type="range" id="spacingSlider" min="1" max="6" value="2" step="1">
+            <span class="range-icon">↔️</span>
+          </div>
+        </div>
+
+        <!-- 4. Matrix Hardware & Fonts (Tab Settings) -->
+        <div class="deck-card tab-settings">
+          <div class="card-title-row">
+            <span class="card-title">Hardware LED</span>
+          </div>
+          <div class="selects-col">
+            <div class="select-field">
+              <label for="fontSelect">Fuente:</label>
+              <select id="fontSelect">
+                <option value="led-matrix" selected>Matriz LED (Pixel Perfect)</option>
+                <option value="modern-sans">Moderna Sans (Ultra Legible)</option>
+                <option value="impact-clean">Impact Display (Cartel)</option>
+                <option value="arcade">Arcade 8-Bit</option>
+                <option value="digital">Cyber Digital</option>
+              </select>
+            </div>
+            <div class="select-field">
+              <label for="shapeSelect">Forma LED:</label>
+              <select id="shapeSelect">
+                <option value="circle" selected>Diodo Circular ●</option>
+                <option value="square">Chip Cuadrado ■</option>
+                <option value="diamond">Diamante ◆</option>
+              </select>
+            </div>
+            <div class="select-field">
+              <label for="densitySelect">Filas Matriz:</label>
+              <select id="densitySelect">
+                <option value="16">16 Filas (Vintage)</option>
+                <option value="24" selected>24 Filas (Estándar)</option>
+                <option value="32">32 Filas (Alta Densidad)</option>
+                <option value="40">40 Filas (Ultra HD)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Info Bar -->
+      <div class="deck-footer">
+        <div class="hints-list">
+          <span><kbd>F</kbd> Pantalla Completa</span>
+          <span><kbd>Espacio</kbd> Pausar</span>
+          <span><kbd>H</kbd> Ocultar Interfaz</span>
+          <span><kbd>M</kbd> Modo Espejo</span>
+        </div>
+        <div class="fps-meter" id="fpsDisplay">60 FPS</div>
+      </div>
+
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
