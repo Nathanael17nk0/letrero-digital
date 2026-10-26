@@ -47,6 +47,13 @@
   const btnFitAuto = document.getElementById('btnFitAuto');
   const btnFitScroll = document.getElementById('btnFitScroll');
   const fitBadge = document.getElementById('fitBadge');
+  const textSizeSlider = document.getElementById('textSizeSlider');
+  const textSizeLabel = document.getElementById('textSizeLabel');
+  const btnAutoFitSize = document.getElementById('btnAutoFitSize');
+  const overflowNotice = document.getElementById('overflowNotice');
+  const overflowNoticeText = document.getElementById('overflowNoticeText');
+  const btnFixOverflow = document.getElementById('btnFixOverflow');
+  const btnRotateOverflow = document.getElementById('btnRotateOverflow');
   const speedSlider = document.getElementById('speedSlider');
   const speedLabel = document.getElementById('speedLabel');
   const glowSlider = document.getElementById('glowSlider');
@@ -75,7 +82,9 @@
     color: '#ffaa00',
     colorName: 'Ámbar Oro',
     mode: 'marquee-left', // marquee-left, marquee-right, static, blink, wave
-    fitMode: 'auto', // 'auto' (Todo en pantalla sin scroll) o 'scroll' (1 línea continua)
+    fitMode: 'scroll', // 'scroll' (1 línea continua a tamaño completo) o 'auto' (Todo en pantalla ajustado)
+    isAutoTextSize: false, // Si está en true, calcula automáticamente el tamaño para que quepa en pantalla
+    textSize: 100, // Porcentaje de tamaño manual (30 a 150)
     speed: 6,
     glow: 75,
     strokeWeight: 'fine', // fine, normal, bold
@@ -194,6 +203,8 @@
         if (p.colorName) state.colorName = p.colorName;
         if (p.mode) state.mode = p.mode;
         if (p.fitMode) state.fitMode = p.fitMode;
+        if (p.textSize !== undefined) state.textSize = Number(p.textSize);
+        if (p.isAutoTextSize !== undefined) state.isAutoTextSize = Boolean(p.isAutoTextSize);
         if (p.speed) state.speed = Number(p.speed);
         if (p.glow !== undefined) state.glow = Number(p.glow);
         if (p.strokeWeight) state.strokeWeight = p.strokeWeight;
@@ -225,6 +236,8 @@
         colorName: state.colorName,
         mode: state.mode,
         fitMode: state.fitMode,
+        textSize: state.textSize,
+        isAutoTextSize: state.isAutoTextSize,
         speed: state.speed,
         glow: state.glow,
         strokeWeight: state.strokeWeight,
@@ -276,7 +289,17 @@
       btnFitScroll.classList.toggle('active', state.fitMode === 'scroll');
     }
     if (fitBadge) {
-      fitBadge.textContent = state.fitMode === 'auto' ? 'Todo en Pantalla' : '1 Sola Línea';
+      fitBadge.textContent = state.fitMode === 'auto' ? 'Todo en Pantalla' : 'Tamaño Máximo';
+    }
+
+    if (textSizeSlider) {
+      textSizeSlider.value = state.textSize;
+    }
+    if (textSizeLabel) {
+      textSizeLabel.textContent = state.isAutoTextSize ? `Auto (${state.textSize}%)` : `${state.textSize}%`;
+    }
+    if (btnAutoFitSize) {
+      btnAutoFitSize.classList.toggle('active', state.isAutoTextSize);
     }
   }
 
@@ -344,52 +367,22 @@
     } else {
       rasterizeVectorFont(content, rows);
     }
+
+    checkOverflowState();
   }
 
-  // --- Funciones Auxiliares para Ancho y Partición de Texto ---
-  function measureBitmapLineWidth(text, scale, spacing) {
+  // --- Funciones Auxiliares para Medición de Texto ---
+  function measureBitmapLineWidth(text, scale, gap) {
     let w = 0;
     for (let i = 0; i < text.length; i++) {
-      const cols = BITMAP_5x7[text[i]] || BITMAP_5x7['?'] || [0x7F, 0x41, 0x41, 0x7F];
-      w += (cols.length * scale);
-      if (i < text.length - 1) w += spacing;
+      const colBits = BITMAP_5x7[text[i]] || BITMAP_5x7['?'] || [0x7F, 0x41, 0x41, 0x7F];
+      w += Math.ceil(colBits.length * scale);
+      if (i < text.length - 1) w += gap;
     }
     return w;
   }
 
-  function wrapTextIntoLines(text, maxCols, scale, spacing, maxLines) {
-    if (text.includes('\n')) {
-      return text.split('\n').map(l => l.trim()).filter(Boolean);
-    }
-    const words = text.trim().split(/\s+/);
-    if (words.length <= 1) return [text];
-
-    let lines = [];
-    let curLine = '';
-    for (const w of words) {
-      const test = curLine ? (curLine + ' ' + w) : w;
-      if (measureBitmapLineWidth(test, scale, spacing) <= maxCols) {
-        curLine = test;
-      } else {
-        if (curLine) lines.push(curLine);
-        curLine = w;
-      }
-    }
-    if (curLine) lines.push(curLine);
-
-    if (lines.length > maxLines) {
-      const balanced = [];
-      const wordsPerLine = Math.ceil(words.length / maxLines);
-      for (let i = 0; i < maxLines; i++) {
-        const slice = words.slice(i * wordsPerLine, (i + 1) * wordsPerLine);
-        if (slice.length > 0) balanced.push(slice.join(' '));
-      }
-      return balanced;
-    }
-    return lines;
-  }
-
-  // Renderizado Pixel-Perfect con fuente bitmap (Multilínea y Auto-Ajuste)
+  // Renderizado Pixel-Perfect con fuente bitmap (Mantiene estética de 1 sola línea)
   function rasterizeBitmapFont(content, rows) {
     if (!content || content.length === 0) {
       state.textWidth = 10;
@@ -403,101 +396,119 @@
 
     const spacing = Math.max(1, state.letterSpacing);
     const cols = Math.max(matrixCols, 30);
+    const availCols = Math.max(10, Math.floor(cols * 0.94));
 
-    // Escala máxima para llenar armónicamente la altura de la matriz (~80% de la altura)
-    const maxSingleScale = Math.max(1, Math.floor((rows * 0.82) / 7));
+    // Altura y escala máxima de referencia para 1 sola línea imponente
+    const maxSingleScale = Math.max(1, (rows * 0.78) / 7);
+    const naturalBaseW = measureBitmapLineWidth(content, 1, spacing);
+
     let scale = maxSingleScale;
     let lines = [content];
 
     const isExplicitMultiline = content.includes('\n');
 
+    const isScrollingMode = (state.mode === 'marquee-left' || state.mode === 'marquee-right' || state.mode === 'wave');
+
     if (isExplicitMultiline) {
       lines = content.split('\n').map(l => l.trim()).filter(Boolean);
-      scale = Math.max(1, Math.floor(((rows / Math.max(lines.length, 1)) * 0.76) / 7));
-    } else if (state.fitMode === 'auto') {
-      // En modo 'auto' (Todo en Pantalla), buscamos la escala más alta donde quepa en 1 sola línea
-      let bestSingleScale = 1;
-      for (let s = maxSingleScale; s >= 1; s--) {
-        if (measureBitmapLineWidth(content, s, spacing) <= cols) {
-          bestSingleScale = s;
-          break;
-        }
-      }
-
-      if (measureBitmapLineWidth(content, bestSingleScale, spacing) <= cols && bestSingleScale >= 2) {
-        scale = bestSingleScale;
-        lines = [content];
+      const lineCount = Math.max(lines.length, 1);
+      const maxPerLineScale = Math.max(1.0, (rows * 0.74) / (lineCount * 7 + (lineCount - 1) * 2));
+      scale = Math.max(1.0, maxPerLineScale * (state.textSize / 100));
+    } else if (isScrollingMode) {
+      // En modos con desplazamiento (Correr, Inverso, Onda):
+      // El letrero desplaza el texto horizontalmente, por lo que mantiene la altura
+      // completa, imponente y nítida de 1 sola línea (100% de escala)
+      if (state.isAutoTextSize) {
+        scale = maxSingleScale;
+        state.textSize = 100;
+        if (textSizeSlider) textSizeSlider.value = 100;
+        if (textSizeLabel) textSizeLabel.textContent = '100%';
       } else {
-        // Si a escala 1 o 2 no cabe bien, probamos multilínea
-        const maxLines = rows >= 36 ? 3 : 2;
-        const candidateLines = wrapTextIntoLines(content, cols, 1, spacing, maxLines);
-        if (candidateLines.length > 1) {
-          lines = candidateLines;
-          scale = Math.max(1, Math.floor(((rows / lines.length) * 0.74) / 7));
-        } else {
-          scale = bestSingleScale;
-          lines = [content];
-        }
+        scale = Math.max(1.0, maxSingleScale * (state.textSize / 100));
       }
+      lines = [content];
+    } else if (state.fitMode === 'auto') {
+      // En modo Fijo con 'Todo en Pantalla':
+      // Calculamos la escala exacta para que quepa en 1 sola línea horizontalmente
+      const fitScale = availCols / Math.max(naturalBaseW, 1);
+      if (state.isAutoTextSize) {
+        scale = Math.max(1.0, Math.min(maxSingleScale, fitScale));
+        state.textSize = Math.max(20, Math.min(150, Math.round((scale / maxSingleScale) * 100)));
+        if (textSizeSlider) textSizeSlider.value = state.textSize;
+        if (textSizeLabel) textSizeLabel.textContent = `Auto (${state.textSize}%)`;
+      } else {
+        scale = Math.max(1.0, maxSingleScale * (state.textSize / 100));
+      }
+      lines = [content];
     } else {
-      // Modo 'scroll' (1 Sola Línea Continua):
-      // Usa la escala completa del letrero para que las letras sean altas, nítidas e imponentes
-      scale = maxSingleScale;
+      // Modo Fijo con 'Tamaño Máximo':
+      if (state.isAutoTextSize) {
+        scale = maxSingleScale;
+        state.textSize = 100;
+        if (textSizeSlider) textSizeSlider.value = 100;
+        if (textSizeLabel) textSizeLabel.textContent = `100%`;
+      } else {
+        scale = Math.max(1.0, maxSingleScale * (state.textSize / 100));
+      }
       lines = [content];
     }
 
-    const fontH = 7 * scale;
-    const lineGap = (lines.length === 2) ? (rows >= 24 ? 3 : 2) : 1;
+    // Dimensiones finales de caracteres
+    const fontH = Math.round(7 * scale);
+    const charGap = Math.max(1, Math.round(spacing * Math.min(scale, 2.5) / 2));
+    const lineGap = Math.max(1, Math.round(scale * 0.4));
     const totalBlockH = lines.length * fontH + (lines.length - 1) * lineGap;
     const blockY = Math.max(0, Math.floor((rows - totalBlockH) / 2));
 
-    // Determinar ancho máximo de línea
     let maxLineW = 0;
     lines.forEach(line => {
-      const lw = measureBitmapLineWidth(line, scale, spacing);
+      const lw = measureBitmapLineWidth(line, scale, charGap);
       if (lw > maxLineW) maxLineW = lw;
     });
 
-    const isFixedScreen = ((state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink') && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
-    const canvasW = isFixedScreen ? cols : Math.max(maxLineW, 10);
-    state.textWidth = canvasW;
+    state.textWidth = Math.max(maxLineW, 10);
+    state.textHeight = rows;
 
-    offCanvas.width = canvasW;
+    offCanvas.width = state.textWidth;
     offCanvas.height = rows;
-    offCtx.clearRect(0, 0, canvasW, rows);
+    offCtx.clearRect(0, 0, state.textWidth, rows);
     offCtx.fillStyle = '#ffffff';
 
     const boldExtra = (state.strokeWeight === 'bold') ? Math.max(1, Math.round(scale * 0.35)) : 0;
 
     for (let l = 0; l < lines.length; l++) {
       const line = lines[l];
-      const lineW = measureBitmapLineWidth(line, scale, spacing);
+      const lineW = measureBitmapLineWidth(line, scale, charGap);
       const lineY = blockY + l * (fontH + lineGap);
-      let curX = isFixedScreen ? Math.max(0, Math.floor((cols - lineW) / 2)) : 0;
+      let curX = Math.max(0, Math.floor((state.textWidth - lineW) / 2));
 
       for (let i = 0; i < line.length; i++) {
         const ch = line[i];
         const colBits = BITMAP_5x7[ch] || BITMAP_5x7['?'] || [0x7F, 0x41, 0x41, 0x7F];
+        const charW = Math.ceil(colBits.length * scale);
 
         for (let c = 0; c < colBits.length; c++) {
           const bits = colBits[c];
+          const px = curX + Math.round(c * scale);
+          const pw = Math.ceil(scale);
+
           for (let r = 0; r < 7; r++) {
             if ((bits >> r) & 1) {
-              const px = curX + c * scale;
-              const py = lineY + r * scale;
-              offCtx.fillRect(px, py, scale, scale);
+              const py = lineY + Math.round(r * scale);
+              const ph = Math.ceil(scale);
+              offCtx.fillRect(px, py, pw, ph);
 
               if (boldExtra > 0) {
-                offCtx.fillRect(px + boldExtra, py, scale, scale);
+                offCtx.fillRect(px + boldExtra, py, pw, ph);
               }
             }
           }
         }
-        curX += (colBits.length * scale) + spacing;
+        curX += charW + charGap;
       }
     }
 
-    state.textPixels = offCtx.getImageData(0, 0, canvasW, rows).data;
+    state.textPixels = offCtx.getImageData(0, 0, state.textWidth, rows).data;
   }
 
   // Renderizado Vectorial con Soporte Multilínea
@@ -513,6 +524,8 @@
     }
 
     const cols = Math.max(matrixCols, 30);
+    const availCols = Math.max(10, Math.floor(cols * 0.94));
+
     let fontName = "'Trebuchet MS', 'Arial', sans-serif";
     if (state.fontType === 'modern-sans') fontName = "'Trebuchet MS', 'Arial', sans-serif";
     else if (state.fontType === 'impact-clean') fontName = "Impact, 'Arial Black', sans-serif";
@@ -522,52 +535,54 @@
     const weight = state.strokeWeight === 'fine' ? '500' :
                    state.strokeWeight === 'normal' ? '700' : '900';
 
-    const maxFontH = Math.round(rows * 0.78);
+    const maxFontH = Math.max(8, Math.round(rows * 0.78));
     let fontSize = maxFontH;
     let lines = [content];
 
     const isExplicitMultiline = content.includes('\n');
+    const isScrollingMode = (state.mode === 'marquee-left' || state.mode === 'marquee-right' || state.mode === 'wave');
 
     if (isExplicitMultiline) {
       lines = content.split('\n').map(l => l.trim()).filter(Boolean);
-      fontSize = Math.round((rows * 0.74) / lines.length);
-    } else if (state.fitMode === 'auto') {
-      offCtx.font = `${weight} ${fontSize}px ${fontName}`;
-      const singleW = Math.ceil(offCtx.measureText(content).width) + (content.length - 1) * state.letterSpacing;
-
-      if (singleW > cols) {
-        // Reducción proporcional suave para que quepa en 1 línea si es posible
-        const fitFontSize = Math.floor(fontSize * (cols / singleW) * 0.96);
-        if (fitFontSize >= Math.round(rows * 0.45)) {
-          fontSize = fitFontSize;
-          lines = [content];
-        } else {
-          // Si es muy largo, partir en multilínea
-          const maxLines = rows >= 36 ? 3 : 2;
-          fontSize = Math.round((rows * 0.74) / maxLines);
-          offCtx.font = `${weight} ${fontSize}px ${fontName}`;
-
-          const words = content.trim().split(/\s+/);
-          lines = [];
-          let cur = '';
-          for (const w of words) {
-            const test = cur ? (cur + ' ' + w) : w;
-            const testW = Math.ceil(offCtx.measureText(test).width) + (test.length - 1) * state.letterSpacing;
-            if (testW <= cols) {
-              cur = test;
-            } else {
-              if (cur) lines.push(cur);
-              cur = w;
-            }
-          }
-          if (cur) lines.push(cur);
-          if (lines.length > maxLines) lines = lines.slice(0, maxLines);
-        }
+      fontSize = Math.max(7, Math.round((rows * 0.74) / lines.length));
+      if (!state.isAutoTextSize) {
+        fontSize = Math.max(7, Math.round(fontSize * (state.textSize / 100)));
       }
+    } else if (isScrollingMode) {
+      // En modo con desplazamiento (Correr, Inverso, Onda): altura completa e imponente (100%)
+      if (state.isAutoTextSize) {
+        fontSize = maxFontH;
+        state.textSize = 100;
+        if (textSizeSlider) textSizeSlider.value = 100;
+        if (textSizeLabel) textSizeLabel.textContent = '100%';
+      } else {
+        fontSize = Math.max(7, Math.round(maxFontH * (state.textSize / 100)));
+      }
+      lines = [content];
+    } else if (state.fitMode === 'auto') {
+      // En modo Fijo con 'Todo en Pantalla': ajustar para que quepa en 1 sola línea
+      offCtx.font = `${weight} ${maxFontH}px ${fontName}`;
+      const singleW = Math.ceil(offCtx.measureText(content).width) + (content.length - 1) * state.letterSpacing;
+      if (state.isAutoTextSize) {
+        const fitRatio = availCols / Math.max(singleW, 1);
+        fontSize = Math.max(7, Math.min(maxFontH, Math.floor(maxFontH * fitRatio)));
+        state.textSize = Math.max(20, Math.min(150, Math.round((fontSize / maxFontH) * 100)));
+        if (textSizeSlider) textSizeSlider.value = state.textSize;
+        if (textSizeLabel) textSizeLabel.textContent = `Auto (${state.textSize}%)`;
+      } else {
+        fontSize = Math.max(7, Math.round(maxFontH * (state.textSize / 100)));
+      }
+      lines = [content];
     } else {
-      // Modo 'scroll' (1 Sola Línea Continua):
-      // Usa el tamaño óptimo para llenar con impacto la matriz
-      fontSize = maxFontH;
+      // Modo Fijo con 'Tamaño Máximo'
+      if (state.isAutoTextSize) {
+        fontSize = maxFontH;
+        state.textSize = 100;
+        if (textSizeSlider) textSizeSlider.value = 100;
+        if (textSizeLabel) textSizeLabel.textContent = `100%`;
+      } else {
+        fontSize = Math.max(7, Math.round(maxFontH * (state.textSize / 100)));
+      }
       lines = [content];
     }
 
@@ -578,26 +593,54 @@
       if (lw > maxLineW) maxLineW = lw;
     });
 
-    const isFixedScreen = ((state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink') && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
-    const canvasW = isFixedScreen ? cols : Math.max(maxLineW, 10);
-    state.textWidth = canvasW;
+    state.textWidth = Math.max(maxLineW, 10);
+    state.textHeight = rows;
 
-    offCanvas.width = canvasW;
+    offCanvas.width = state.textWidth;
     offCanvas.height = rows;
-    offCtx.clearRect(0, 0, canvasW, rows);
+    offCtx.clearRect(0, 0, state.textWidth, rows);
 
     offCtx.font = `${weight} ${fontSize}px ${fontName}`;
     offCtx.fillStyle = '#ffffff';
     offCtx.textBaseline = 'middle';
     offCtx.textAlign = 'center';
 
-    for (let l = 0; l < lines.length; l++) {
-      const yCenter = (rows / (lines.length + 1)) * (l + 1);
-      const xCenter = canvasW / 2;
-      offCtx.fillText(lines[l], xCenter, yCenter);
+    if (lines.length === 1) {
+      offCtx.fillText(lines[0], state.textWidth / 2, rows / 2);
+    } else {
+      for (let l = 0; l < lines.length; l++) {
+        const yCenter = (rows / (lines.length + 1)) * (l + 1);
+        offCtx.fillText(lines[l], state.textWidth / 2, yCenter);
+      }
     }
 
-    state.textPixels = offCtx.getImageData(0, 0, canvasW, rows).data;
+    state.textPixels = offCtx.getImageData(0, 0, state.textWidth, rows).data;
+  }
+
+  // Comprobar estado de desbordamiento en modo fijo y actualizar aviso interactivo
+  function checkOverflowState() {
+    if (!overflowNotice) return;
+    const isTrulyStatic = (state.mode === 'static' || state.mode === 'blink');
+    const cols = matrixCols || 30;
+    const isOverflowing = (state.textWidth > cols);
+
+    if (isTrulyStatic && isOverflowing) {
+      overflowNotice.style.display = 'flex';
+      overflowNotice.classList.remove('all-good');
+      if (overflowNoticeText) {
+        overflowNoticeText.textContent = `⚠️ Texto no cabe (${state.textWidth} / ${cols} LEDs)`;
+      }
+      if (btnFixOverflow) btnFixOverflow.style.display = 'inline-block';
+    } else if (isTrulyStatic && !isOverflowing && state.textWidth > cols * 0.7) {
+      overflowNotice.style.display = 'flex';
+      overflowNotice.classList.add('all-good');
+      if (overflowNoticeText) {
+        overflowNoticeText.textContent = `✓ Cabe completo en pantalla (${state.textWidth} / ${cols} LEDs)`;
+      }
+      if (btnFixOverflow) btnFixOverflow.style.display = 'none';
+    } else {
+      overflowNotice.style.display = 'none';
+    }
   }
 
   // Muestreo de píxel con filtro para evitar que las letras se engorden
@@ -1074,12 +1117,14 @@
       });
     });
 
-    // Ajuste de Pantalla (Auto-Ajustar vs 1 Línea)
+    // Ajuste de Pantalla (Todo en Pantalla vs Tamaño Máximo)
     if (btnFitAuto && btnFitScroll) {
       btnFitAuto.addEventListener('click', () => {
         state.fitMode = 'auto';
+        state.isAutoTextSize = true;
         btnFitAuto.classList.add('active');
         btnFitScroll.classList.remove('active');
+        if (btnAutoFitSize) btnAutoFitSize.classList.add('active');
         if (fitBadge) fitBadge.textContent = 'Todo en Pantalla';
         rasterizeText();
         savePreferences();
@@ -1087,11 +1132,65 @@
 
       btnFitScroll.addEventListener('click', () => {
         state.fitMode = 'scroll';
+        state.isAutoTextSize = false;
+        state.textSize = 100;
         btnFitScroll.classList.add('active');
         btnFitAuto.classList.remove('active');
-        if (fitBadge) fitBadge.textContent = '1 Sola Línea';
+        if (btnAutoFitSize) btnAutoFitSize.classList.remove('active');
+        if (fitBadge) fitBadge.textContent = 'Tamaño Máximo';
+        if (textSizeSlider) textSizeSlider.value = 100;
+        if (textSizeLabel) textSizeLabel.textContent = '100%';
         rasterizeText();
         savePreferences();
+      });
+    }
+
+    // Botón Auto-Ajustar Tamaño
+    if (btnAutoFitSize) {
+      btnAutoFitSize.addEventListener('click', () => {
+        state.isAutoTextSize = true;
+        state.fitMode = 'auto';
+        if (btnFitAuto) btnFitAuto.classList.add('active');
+        if (btnFitScroll) btnFitScroll.classList.remove('active');
+        btnAutoFitSize.classList.add('active');
+        if (fitBadge) fitBadge.textContent = 'Todo en Pantalla';
+        rasterizeText();
+        savePreferences();
+      });
+    }
+
+    // Slider de Tamaño Manual de Texto
+    if (textSizeSlider) {
+      textSizeSlider.addEventListener('input', (e) => {
+        state.isAutoTextSize = false;
+        state.textSize = Number(e.target.value);
+        if (btnAutoFitSize) btnAutoFitSize.classList.remove('active');
+        if (textSizeLabel) textSizeLabel.textContent = `${state.textSize}%`;
+        rasterizeText();
+        savePreferences();
+      });
+    }
+
+    // Botón de Corrección de Desbordamiento en Modo Fijo
+    if (btnFixOverflow) {
+      btnFixOverflow.addEventListener('click', () => {
+        const cols = matrixCols || 30;
+        if (state.textWidth > cols) {
+          const fitRatio = (cols * 0.92) / state.textWidth;
+          state.textSize = Math.max(20, Math.min(150, Math.floor(state.textSize * fitRatio)));
+        }
+        state.isAutoTextSize = false;
+        if (btnAutoFitSize) btnAutoFitSize.classList.remove('active');
+        if (textSizeSlider) textSizeSlider.value = state.textSize;
+        if (textSizeLabel) textSizeLabel.textContent = `${state.textSize}%`;
+        rasterizeText();
+        savePreferences();
+      });
+    }
+
+    if (btnRotateOverflow) {
+      btnRotateOverflow.addEventListener('click', () => {
+        toggleMobileRotation();
       });
     }
 

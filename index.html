@@ -615,6 +615,73 @@
       box-shadow: 0 0 10px rgba(251, 146, 60, 0.35);
     }
 
+    /* Botón Mini Acción (Auto Fit) */
+    .btn-mini-action {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: #cbd5e1;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-mini-action:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+
+    .btn-mini-action.active {
+      background: rgba(255, 170, 0, 0.22);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 8px rgba(255, 170, 0, 0.3);
+    }
+
+    /* Aviso de Desbordamiento en Modo Fijo */
+    .overflow-notice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 6px;
+      background: rgba(255, 136, 0, 0.12);
+      border: 1px solid rgba(255, 136, 0, 0.35);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 0.68rem;
+      color: #fed7aa;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .overflow-notice.all-good {
+      background: rgba(0, 255, 102, 0.08);
+      border-color: rgba(0, 255, 102, 0.28);
+      color: #86efac;
+    }
+
+    .btn-fix-overflow {
+      background: linear-gradient(135deg, #ffaa00, #ff8800);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-fix-overflow:hover {
+      background: linear-gradient(135deg, #ffbb22, #ff9911);
+      box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+    }
+
     /* Sliders */
     .range-row {
       display: flex;
@@ -995,15 +1062,37 @@
 
           <div class="card-title-row" style="margin-top: 8px;">
             <span class="card-title">Ajuste de Pantalla</span>
-            <span id="fitBadge" class="card-badge">Todo en Pantalla</span>
+            <span id="fitBadge" class="card-badge">Tamaño Máximo</span>
           </div>
           <div class="fit-segment-row">
-            <button class="fit-pill active" data-fit="auto" id="btnFitAuto" title="Ajusta y divide en líneas para ver todo el texto completo a la vez sin correr">
+            <button class="fit-pill" data-fit="auto" id="btnFitAuto" title="Ajusta el tamaño en 1 sola línea para ver todo el mensaje sin cortes ni perder la estética">
               📐 Todo en Pantalla
             </button>
-            <button class="fit-pill" data-fit="scroll" id="btnFitScroll" title="Texto en una sola línea continua">
-              📜 1 Sola Línea
+            <button class="fit-pill active" data-fit="scroll" id="btnFitScroll" title="Texto en tamaño grande completo (ideal para desplazamiento)">
+              📜 Tamaño Máximo
             </button>
+          </div>
+
+          <div class="card-title-row" style="margin-top: 8px;">
+            <span class="card-title">Tamaño de Texto</span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button id="btnAutoFitSize" class="btn-mini-action" title="Ajustar automáticamente al ancho de la pantalla">📐 Auto</button>
+              <span id="textSizeLabel" class="card-badge">100%</span>
+            </div>
+          </div>
+          <div class="range-row">
+            <span class="range-icon" style="font-size: 0.72rem; font-weight: 800; opacity: 0.8;">A-</span>
+            <input type="range" id="textSizeSlider" min="20" max="150" value="100" step="1" title="Ajustar tamaño del texto manualmente">
+            <span class="range-icon" style="font-size: 0.92rem; font-weight: 800; opacity: 0.8;">A+</span>
+          </div>
+
+          <!-- Alerta interactiva de desbordamiento en modo fijo -->
+          <div id="overflowNotice" class="overflow-notice" style="display: none;">
+            <span id="overflowNoticeText">⚠️ El mensaje no cabe completo</span>
+            <div style="display: flex; gap: 4px;">
+              <button id="btnFixOverflow" class="btn-fix-overflow" title="Reducir automáticamente para que quepa todo">📐 Ajustar</button>
+              <button id="btnRotateOverflow" class="btn-mini-action" title="Girar pantalla 90° para mayor espacio horizontal">🔄 Girar</button>
+            </div>
           </div>
 
           <div class="card-title-row" style="margin-top: 8px;">
