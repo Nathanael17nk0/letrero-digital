@@ -81,7 +81,7 @@
     strokeWeight: 'fine', // fine, normal, bold
     letterSpacing: 2, // 1 a 6 píxeles de espacio entre letras
     shape: 'circle', // circle, square, diamond
-    matrixRows: 24, // 16, 24, 32, 40
+    matrixRows: 'auto', // 'auto' (Auto HD Inteligente), 16, 24, 32, 44, 56
     fontType: 'led-matrix', // default pixel-perfect matrix
     isPaused: false,
     isMirror: false,
@@ -104,6 +104,7 @@
   // Variables de dimensión de la matriz
   let canvasW = 0;
   let canvasH = 0;
+  let effectiveRows = 24;
   let matrixCols = 0;
   let pitch = 0;
   let diodeRadius = 0;
@@ -198,7 +199,11 @@
         if (p.strokeWeight) state.strokeWeight = p.strokeWeight;
         if (p.letterSpacing) state.letterSpacing = Number(p.letterSpacing);
         if (p.shape) state.shape = p.shape;
-        if (p.matrixRows) state.matrixRows = Number(p.matrixRows);
+        if (p.matrixRows !== undefined) {
+          state.matrixRows = (p.matrixRows === 'auto' || p.matrixRows === 24 || p.matrixRows === '24') ? 'auto' : Number(p.matrixRows);
+        } else {
+          state.matrixRows = 'auto';
+        }
         if (p.fontType && VALID_FONTS.includes(p.fontType)) {
           state.fontType = p.fontType;
         } else {
@@ -208,6 +213,7 @@
       }
     } catch (e) {
       state.fontType = 'led-matrix';
+      state.matrixRows = 'auto';
     }
   }
 
@@ -281,6 +287,28 @@
     else speedLabel.textContent = `Turbo (${val})`;
   }
 
+  // --- Cálculo Dinámico de Filas para Máxima Nitidez (Auto HD) ---
+  function calculateEffectiveRows(h) {
+    if (state.matrixRows !== 'auto') {
+      return Number(state.matrixRows);
+    }
+    // Auto HD: adaptamos la densidad de diodos según la altura disponible
+    // para mantener un tamaño de LED óptimo (~6.5px a 8.5px de pitch).
+    if (h <= 140) {
+      return 24; // Barra compacta en vertical (con controles abiertos)
+    } else if (h <= 220) {
+      return 30;
+    } else if (h <= 340) {
+      return 38;
+    } else if (h <= 480) {
+      return 48; // Celular horizontal / pantalla completa móvil (~375px-430px)
+    } else if (h <= 680) {
+      return 56; // Tablet horizontal
+    } else {
+      return 64; // Pantallas grandes de escritorio
+    }
+  }
+
   // --- Dimensionamiento de Canvas y Matriz (Inmune a rotaciones CSS) ---
   function updateDimensions() {
     // Usamos clientWidth y clientHeight para obtener las dimensiones lógicas no transformadas
@@ -293,12 +321,13 @@
     canvas.width = Math.round(canvasW * dpr);
     canvas.height = Math.round(canvasH * dpr);
 
-    pitch = canvasH / state.matrixRows;
+    effectiveRows = calculateEffectiveRows(canvasH);
+    pitch = canvasH / effectiveRows;
     matrixCols = Math.floor(canvasW / pitch);
     diodeRadius = (pitch * 0.78) / 2;
 
     offsetX = (canvasW - matrixCols * pitch) / 2;
-    offsetY = (canvasH - state.matrixRows * pitch) / 2;
+    offsetY = (canvasH - effectiveRows * pitch) / 2;
 
     rasterizeText();
   }
@@ -307,7 +336,7 @@
   function rasterizeText() {
     const rawContent = (state.text && state.text.trim().length > 0) ? state.text.trim() : ' ';
     const content = rawContent.toUpperCase();
-    const rows = state.matrixRows;
+    const rows = effectiveRows;
     state.textHeight = rows;
 
     if (state.fontType === 'led-matrix') {
@@ -374,31 +403,46 @@
 
     const spacing = Math.max(1, state.letterSpacing);
     const cols = Math.max(matrixCols, 30);
-    let scale = Math.max(1, Math.floor((rows * 0.68) / 7));
+
+    // Escala máxima para llenar armónicamente la altura de la matriz (~80% de la altura)
+    const maxSingleScale = Math.max(1, Math.floor((rows * 0.82) / 7));
+    let scale = maxSingleScale;
     let lines = [content];
 
-    const isAutoOrStatic = (state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink');
+    const isExplicitMultiline = content.includes('\n');
 
-    if (isAutoOrStatic) {
-      // 1. ¿Cabe en 1 sola línea a escala normal?
-      const wNormal = measureBitmapLineWidth(content, scale, spacing);
-      if (wNormal <= cols) {
+    if (isExplicitMultiline) {
+      lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+      scale = Math.max(1, Math.floor(((rows / Math.max(lines.length, 1)) * 0.76) / 7));
+    } else if (state.fitMode === 'auto') {
+      // En modo 'auto' (Todo en Pantalla), buscamos la escala más alta donde quepa en 1 sola línea
+      let bestSingleScale = 1;
+      for (let s = maxSingleScale; s >= 1; s--) {
+        if (measureBitmapLineWidth(content, s, spacing) <= cols) {
+          bestSingleScale = s;
+          break;
+        }
+      }
+
+      if (measureBitmapLineWidth(content, bestSingleScale, spacing) <= cols && bestSingleScale >= 2) {
+        scale = bestSingleScale;
         lines = [content];
       } else {
-        // 2. ¿Cabe en 1 línea a escala 1?
-        const wCompact = measureBitmapLineWidth(content, 1, spacing);
-        if (wCompact <= cols) {
-          scale = 1;
-          lines = [content];
+        // Si a escala 1 o 2 no cabe bien, probamos multilínea
+        const maxLines = rows >= 36 ? 3 : 2;
+        const candidateLines = wrapTextIntoLines(content, cols, 1, spacing, maxLines);
+        if (candidateLines.length > 1) {
+          lines = candidateLines;
+          scale = Math.max(1, Math.floor(((rows / lines.length) * 0.74) / 7));
         } else {
-          // 3. Dividir en multilínea (2 o 3 líneas según altura de matriz)
-          scale = 1;
-          const maxLines = rows >= 32 ? 4 : (rows >= 24 ? 3 : 2);
-          lines = wrapTextIntoLines(content, cols, scale, spacing, maxLines);
+          scale = bestSingleScale;
+          lines = [content];
         }
       }
     } else {
-      // 1 sola línea continua (estilo marquesina clásico)
+      // Modo 'scroll' (1 Sola Línea Continua):
+      // Usa la escala completa del letrero para que las letras sean altas, nítidas e imponentes
+      scale = maxSingleScale;
       lines = [content];
     }
 
@@ -414,7 +458,7 @@
       if (lw > maxLineW) maxLineW = lw;
     });
 
-    const isFixedScreen = (isAutoOrStatic && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
+    const isFixedScreen = ((state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink') && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
     const canvasW = isFixedScreen ? cols : Math.max(maxLineW, 10);
     state.textWidth = canvasW;
 
@@ -422,6 +466,8 @@
     offCanvas.height = rows;
     offCtx.clearRect(0, 0, canvasW, rows);
     offCtx.fillStyle = '#ffffff';
+
+    const boldExtra = (state.strokeWeight === 'bold') ? Math.max(1, Math.round(scale * 0.35)) : 0;
 
     for (let l = 0; l < lines.length; l++) {
       const line = lines[l];
@@ -441,8 +487,8 @@
               const py = lineY + r * scale;
               offCtx.fillRect(px, py, scale, scale);
 
-              if (state.strokeWeight === 'bold' && scale > 1) {
-                offCtx.fillRect(px + 1, py, scale, scale);
+              if (boldExtra > 0) {
+                offCtx.fillRect(px + boldExtra, py, scale, scale);
               }
             }
           }
@@ -473,40 +519,67 @@
     else if (state.fontType === 'arcade') fontName = "'Press Start 2P', monospace";
     else if (state.fontType === 'digital') fontName = "'Orbitron', sans-serif";
 
-    const weight = state.strokeWeight === 'fine' ? '400' :
-                   state.strokeWeight === 'normal' ? '600' : '800';
+    const weight = state.strokeWeight === 'fine' ? '500' :
+                   state.strokeWeight === 'normal' ? '700' : '900';
 
-    const isAutoOrStatic = (state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink');
+    const maxFontH = Math.round(rows * 0.78);
+    let fontSize = maxFontH;
     let lines = [content];
-    let fontSize = Math.round(rows * 0.65);
 
-    offCtx.font = `${weight} ${fontSize}px ${fontName}`;
-    const singleW = Math.ceil(offCtx.measureText(content).width) + (content.length - 1) * state.letterSpacing;
+    const isExplicitMultiline = content.includes('\n');
 
-    if (isAutoOrStatic && singleW > cols) {
-      const maxLines = rows >= 32 ? 3 : 2;
-      fontSize = Math.round((rows * 0.75) / maxLines);
+    if (isExplicitMultiline) {
+      lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+      fontSize = Math.round((rows * 0.74) / lines.length);
+    } else if (state.fitMode === 'auto') {
       offCtx.font = `${weight} ${fontSize}px ${fontName}`;
+      const singleW = Math.ceil(offCtx.measureText(content).width) + (content.length - 1) * state.letterSpacing;
 
-      const words = content.trim().split(/\s+/);
-      lines = [];
-      let cur = '';
-      for (const w of words) {
-        const test = cur ? (cur + ' ' + w) : w;
-        const testW = Math.ceil(offCtx.measureText(test).width) + (test.length - 1) * state.letterSpacing;
-        if (testW <= cols) {
-          cur = test;
+      if (singleW > cols) {
+        // Reducción proporcional suave para que quepa en 1 línea si es posible
+        const fitFontSize = Math.floor(fontSize * (cols / singleW) * 0.96);
+        if (fitFontSize >= Math.round(rows * 0.45)) {
+          fontSize = fitFontSize;
+          lines = [content];
         } else {
+          // Si es muy largo, partir en multilínea
+          const maxLines = rows >= 36 ? 3 : 2;
+          fontSize = Math.round((rows * 0.74) / maxLines);
+          offCtx.font = `${weight} ${fontSize}px ${fontName}`;
+
+          const words = content.trim().split(/\s+/);
+          lines = [];
+          let cur = '';
+          for (const w of words) {
+            const test = cur ? (cur + ' ' + w) : w;
+            const testW = Math.ceil(offCtx.measureText(test).width) + (test.length - 1) * state.letterSpacing;
+            if (testW <= cols) {
+              cur = test;
+            } else {
+              if (cur) lines.push(cur);
+              cur = w;
+            }
+          }
           if (cur) lines.push(cur);
-          cur = w;
+          if (lines.length > maxLines) lines = lines.slice(0, maxLines);
         }
       }
-      if (cur) lines.push(cur);
-      if (lines.length > maxLines) lines = lines.slice(0, maxLines);
+    } else {
+      // Modo 'scroll' (1 Sola Línea Continua):
+      // Usa el tamaño óptimo para llenar con impacto la matriz
+      fontSize = maxFontH;
+      lines = [content];
     }
 
-    const isFixedScreen = (isAutoOrStatic && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
-    const canvasW = isFixedScreen ? cols : Math.max(singleW, 10);
+    offCtx.font = `${weight} ${fontSize}px ${fontName}`;
+    let maxLineW = 0;
+    lines.forEach(line => {
+      const lw = Math.ceil(offCtx.measureText(line).width) + (line.length - 1) * state.letterSpacing;
+      if (lw > maxLineW) maxLineW = lw;
+    });
+
+    const isFixedScreen = ((state.fitMode === 'auto' || state.mode === 'static' || state.mode === 'blink') && lines.length > 1) || (state.mode === 'static' || state.mode === 'blink');
+    const canvasW = isFixedScreen ? cols : Math.max(maxLineW, 10);
     state.textWidth = canvasW;
 
     offCanvas.width = canvasW;
@@ -539,12 +612,12 @@
     const r = state.textPixels[idx];
     const a = state.textPixels[idx + 3];
 
-    let threshold = 95;
+    let threshold = 90;
     if (state.fontType === 'led-matrix') {
       threshold = 40; // la fuente bitmap ya es 100% binaria
     } else {
-      if (state.strokeWeight === 'fine') threshold = 135;
-      else if (state.strokeWeight === 'bold') threshold = 55;
+      if (state.strokeWeight === 'fine') threshold = 125;
+      else if (state.strokeWeight === 'bold') threshold = 45;
     }
 
     return (a > threshold) ? Math.max(r, a) / 255 : 0;
@@ -714,7 +787,7 @@
 
     const isRainbow = (state.color === 'rainbow');
     const solidRgb = isRainbow ? null : hexToRgb(state.color);
-    const rows = state.matrixRows;
+    const rows = effectiveRows;
     const cols = matrixCols;
     const isBlinkOff = (state.mode === 'blink' && !state.blinkVisible);
 
@@ -792,7 +865,8 @@
     }
 
     // Permitir que la transición CSS termine y recalcular
-    setTimeout(updateDimensions, 360);
+    setTimeout(updateDimensions, 100);
+    setTimeout(updateDimensions, 380);
   }
 
   // --- Pantalla Completa ---
@@ -817,7 +891,8 @@
       btnFullscreen.title = 'Pantalla Completa (F)';
       showControls();
     }
-    setTimeout(updateDimensions, 150);
+    setTimeout(updateDimensions, 100);
+    setTimeout(updateDimensions, 300);
   }
 
   // --- Ocultar / Mostrar Interfaz ---
@@ -827,7 +902,8 @@
     txtToggleUI.textContent = 'Mostrar';
     iconToggleUI.textContent = '👁️‍🗨️';
     btnToggleUI.classList.add('active');
-    setTimeout(updateDimensions, 250);
+    setTimeout(updateDimensions, 100);
+    setTimeout(updateDimensions, 300);
   }
 
   function showControls() {
@@ -837,7 +913,8 @@
     iconToggleUI.textContent = '👁️';
     btnToggleUI.classList.remove('active');
     resetIdleTimer();
-    setTimeout(updateDimensions, 250);
+    setTimeout(updateDimensions, 100);
+    setTimeout(updateDimensions, 300);
   }
 
   function toggleControls() {
@@ -856,7 +933,14 @@
 
   // --- Listeners de Interacción ---
   function initListeners() {
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener('resize', () => {
+      updateDimensions();
+      setTimeout(updateDimensions, 150);
+    });
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateDimensions, 150);
+      setTimeout(updateDimensions, 400);
+    });
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     window.addEventListener('mousemove', resetIdleTimer);
 
@@ -1057,7 +1141,7 @@
     });
 
     densitySelect.addEventListener('change', (e) => {
-      state.matrixRows = Number(e.target.value);
+      state.matrixRows = e.target.value === 'auto' ? 'auto' : Number(e.target.value);
       updateDimensions();
       savePreferences();
     });
